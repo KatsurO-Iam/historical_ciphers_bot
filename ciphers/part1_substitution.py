@@ -1,10 +1,40 @@
+"""Исторические шифры подстановки для Python 3.10 и новее."""
+
 import re
 import string
 
 from .base import BaseCipher, InvalidKeyError
 
+_RU_LOWER = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+_SUPPORTED_LOWERCASE = string.ascii_lowercase + _RU_LOWER
 
-class CaesarCipher(BaseCipher):
+
+class _AlphabetCipher(BaseCipher):
+    RU_LOWER = _RU_LOWER
+    RU_UPPER = RU_LOWER.upper()
+
+    def _find_letter(self, char: str) -> tuple[str, int] | None:
+        for alphabet in (
+                string.ascii_lowercase,
+                string.ascii_uppercase,
+                self.RU_LOWER,
+                self.RU_UPPER,
+        ):
+            index = alphabet.find(char)
+            if index != -1:
+                return alphabet, index
+        return None
+
+
+class _KeylessCipher(BaseCipher):
+    requires_key = False
+
+    def validate_key(self, key: str = "") -> bool:
+        """Принимает любой ключ, поскольку шифр его не использует."""
+        return True
+
+
+class CaesarCipher(_AlphabetCipher):
     """Реализует шифр Цезаря для русского и английского алфавитов.
 
     Шифрование выполняется циклическим сдвигом букв алфавита
@@ -25,9 +55,6 @@ class CaesarCipher(BaseCipher):
     requires_key = True
     key_hint = "Целое число (например, 3 или -5)."
 
-    RU_LOWER = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
-    RU_UPPER = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
-
     def validate_key(self, key: str) -> bool:
         """Проверяет корректность ключа шифра Цезаря.
 
@@ -41,14 +68,18 @@ class CaesarCipher(BaseCipher):
             InvalidKeyError: Если ключ пустой или не является
                 строковым представлением целого числа.
         """
+        self._parse_key(key)
+        return True
+
+    @staticmethod
+    def _parse_key(key: str) -> int:
         if not key or not key.strip():
             raise InvalidKeyError(
                 "Ключ шифра Цезаря не может быть пустым."
             )
 
         try:
-            int(key.strip())
-            return True
+            return int(key.strip())
         except ValueError as exc:
             raise InvalidKeyError(
                 "Ключ шифра Цезаря должен быть целым числом "
@@ -67,19 +98,15 @@ class CaesarCipher(BaseCipher):
                 Если символ не принадлежит поддерживаемым
                 алфавитам, возвращается исходный символ.
         """
-        alphabets = (
-            string.ascii_lowercase,
-            string.ascii_uppercase,
-            self.RU_LOWER,
-            self.RU_UPPER,
-        )
+        letter = self._find_letter(char)
+        if letter is None:
+            return char
 
-        for alphabet in alphabets:
-            if char in alphabet:
-                index = (alphabet.index(char) + shift) % len(alphabet)
-                return alphabet[index]
+        alphabet, index = letter
+        return alphabet[(index + shift) % len(alphabet)]
 
-        return char
+    def _shift_text(self, text: str, shift: int) -> str:
+        return "".join(self._shift_char(char, shift) for char in text)
 
     def encrypt(self, text: str, key: str) -> str:
         """Шифрует текст методом Цезаря.
@@ -94,9 +121,7 @@ class CaesarCipher(BaseCipher):
         Raises:
             InvalidKeyError: Если передан некорректный ключ.
         """
-        self.validate_key(key)
-        shift = int(key.strip())
-        return "".join(self._shift_char(ch, shift) for ch in text)
+        return self._shift_text(text, self._parse_key(key))
 
     def decrypt(self, text: str, key: str) -> str:
         """Расшифровывает текст методом обратного сдвига.
@@ -111,12 +136,10 @@ class CaesarCipher(BaseCipher):
         Raises:
             InvalidKeyError: Если передан некорректный ключ.
         """
-        self.validate_key(key)
-        shift = int(key.strip())
-        return "".join(self._shift_char(ch, -shift) for ch in text)
+        return self._shift_text(text, -self._parse_key(key))
 
 
-class AtbashCipher(BaseCipher):
+class AtbashCipher(_AlphabetCipher, _KeylessCipher):
     """Шифр Атбаш для английского и русского алфавитов.
 
     Заменяет каждую букву зеркальной буквой её алфавита,
@@ -133,22 +156,7 @@ class AtbashCipher(BaseCipher):
 
     name = "Шифр Атбаш"
     description = "Замена букв зеркальными буквами их алфавита."
-    requires_key = False
     key_hint = "Ключ не требуется."
-
-    RU_LOWER = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
-    RU_UPPER = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
-
-    def validate_key(self, key: str = "") -> bool:
-        """Принимает любой ключ, поскольку шифр его не использует.
-
-        Args:
-            key (str): Неиспользуемый ключ. По умолчанию пустая строка.
-
-        Returns:
-            bool: Всегда True.
-        """
-        return True
 
     def encrypt(self, text: str, key: str = "") -> str:
         """Шифрует текст зеркальной заменой букв.
@@ -160,26 +168,14 @@ class AtbashCipher(BaseCipher):
         Returns:
             str: Зашифрованный текст с сохранением регистра.
         """
-        self.validate_key(key)
-
-        alphabets = (
-            string.ascii_lowercase,
-            string.ascii_uppercase,
-            self.RU_LOWER,
-            self.RU_UPPER,
-        )
         result = []
-
         for char in text:
-            for alphabet in alphabets:
-                if char in alphabet:
-                    index = alphabet.index(char)
-                    new_index = len(alphabet) - 1 - index
-                    result.append(alphabet[new_index])
-                    break
-            else:
+            letter = self._find_letter(char)
+            if letter is None:
                 result.append(char)
-
+            else:
+                alphabet, index = letter
+                result.append(alphabet[-1 - index])
         return "".join(result)
 
     def decrypt(self, text: str, key: str = "") -> str:
@@ -195,11 +191,19 @@ class AtbashCipher(BaseCipher):
         return self.encrypt(text, key)
 
 
-class PolybiusCipher(BaseCipher):
+class PolybiusCipher(_KeylessCipher):
     """Кодирует символы координатами английского и русского квадратов.
 
-    Регистр букв не сохраняется, английская J объединяется с I.
-    Неподдерживаемые символы заключаются в квадратные скобки.
+    Регистр букв из матриц не сохраняется, английская J объединяется с I.
+    Координаты имеют вид Erc или Rrc, где E и R обозначают английскую
+    и русскую матрицы, а r и c — строку и столбец с единицы.
+    Символы вне матриц сохраняются в квадратных скобках.
+    В русской матрице отсутствуют Ё/ё и Й/й, поэтому они сохраняют
+    исходный регистр при шифровании и последующем дешифровании.
+    Токены разделяются пробельными символами. Пробелы и переводы строк
+    внутри экранированного токена считаются его содержимым.
+
+    Пример: "A Ёй" шифруется как "E11 R62 [Ё] [й]".
 
     Attributes:
         name (str): Название шифра.
@@ -212,7 +216,6 @@ class PolybiusCipher(BaseCipher):
 
     name = "Квадрат Полибия"
     description = "Координатное шифрование"
-    requires_key = False
     key_hint = "Ключ не требуется (используется классическая матрица)."
 
     GRID_EN = (
@@ -232,17 +235,6 @@ class PolybiusCipher(BaseCipher):
         "Я ,.!?",
     )
 
-    def validate_key(self, key: str = "") -> bool:
-        """Принимает любой ключ, поскольку он не используется.
-
-        Args:
-            key (str): Неиспользуемый ключ.
-
-        Returns:
-            bool: Всегда True.
-        """
-        return True
-
     def _find_coords(self, char: str) -> str | None:
         """Находит координаты символа после приведения к верхнему регистру.
 
@@ -256,7 +248,7 @@ class PolybiusCipher(BaseCipher):
                 и столбца, начиная с единицы. Если символ отсутствует
                 в матрицах, возвращается None.
         """
-        c = char.upper()
+        c = char.upper() if char in _SUPPORTED_LOWERCASE else char
         if c == "J":
             c = "I"
 
@@ -279,7 +271,6 @@ class PolybiusCipher(BaseCipher):
             str: Координаты символов и неподдерживаемые символы
                 в квадратных скобках.
         """
-        self.validate_key(key)
         result = []
 
         for char in text:
@@ -299,11 +290,10 @@ class PolybiusCipher(BaseCipher):
             str: Расшифрованный текст. Буквы из матриц возвращаются
                 в верхнем регистре, неизвестные токены сохраняются.
         """
-        self.validate_key(key)
         grids = {"E": self.GRID_EN, "R": self.GRID_RU}
         result = []
 
-        for token in re.findall(r"\[[\s\S]\]|\S+", text):
+        for token in re.findall(r"(?:\[[\s\S]\]|\S)+", text):
             if (
                     token.startswith("[")
                     and token.endswith("]")

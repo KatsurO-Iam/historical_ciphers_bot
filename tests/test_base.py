@@ -6,6 +6,11 @@ from ciphers.base import (
     InvalidKeyError,
     InvalidModeError,
 )
+from ciphers.part1_substitution import (
+    AtbashCipher,
+    CaesarCipher,
+    PolybiusCipher,
+)
 
 
 class DummyCipher(BaseCipher):
@@ -99,3 +104,18 @@ def test_encoding_error_cause():
         cipher.process_file_bytes(b"\xff", "1", mode="encrypt")
 
     assert isinstance(exc_info.value.__cause__, UnicodeDecodeError)
+
+
+@pytest.mark.parametrize("cipher_class", [AtbashCipher, PolybiusCipher])
+def test_keyless_file_round_trip(cipher_class):
+    cipher = cipher_class()
+    original = "ABC ЯЁ\r\n🙂".encode("utf-8")
+
+    encrypted = cipher.process_file_bytes(original)
+
+    assert cipher.process_file_bytes(encrypted, mode="decrypt") == original
+
+
+def test_caesar_file_requires_key():
+    with pytest.raises(InvalidKeyError):
+        CaesarCipher().process_file_bytes(b"ABC")

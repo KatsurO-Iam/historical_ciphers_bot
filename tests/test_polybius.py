@@ -14,7 +14,9 @@ from ciphers.part1_substitution import PolybiusCipher
         (",.!?", "R63 R64 R65 R66"),
         ("123@", "[1] [2] [3] [@]"),
         ("Ёё", "[Ё] [ё]"),
+        ("ıſß", "[ı] [ſ] [ß]"),
         ("", ""),
+        ("Йй", "[Й] [й]"),
     ],
 )
 def test_encrypt(text, expected):
@@ -54,7 +56,12 @@ def test_decrypt(text, expected):
         "EAA",
         "E²1",
         "[abc]",
+        "[a]E11",
+        "E11[a]",
+        "[\n]E11",
         "[]",
+        "E11[\n]",
+        "E11[\t]R11",
     ],
 )
 def test_invalid_tokens(token):
@@ -77,12 +84,15 @@ def test_key(key):
     [
         ("Hello", "HELLO"),
         ("Java", "IAVA"),
+        ("ıſß", "ıſß"),
         ("Привет, мир!", "ПРИВЕТ, МИР!"),
         ("A\nB", "A\nB"),
         ("A\tB", "A\tB"),
         ("A\r\nB", "A\r\nB"),
         ("[]", "[]"),
         ("", ""),
+        ("Край", "КРАй"),
+        ("Йй", "Йй"),
     ],
 )
 def test_round_trip(text, expected):

@@ -81,13 +81,14 @@ class BaseCipher(abc.ABC):
         pass
 
     def process_file_bytes(
-            self, data: bytes, key: str, mode: str = "encrypt"
+            self, data: bytes, key: str = "", mode: str = "encrypt"
     ) -> bytes:
         """Шифрует или дешифрует содержимое текстового файла.
 
         Args:
             data (bytes): Содержимое файла в кодировке UTF-8.
-            key (str): Ключ шифрования или дешифрования.
+            key (str): Ключ шифрования или дешифрования. Можно опустить
+                для шифров, которые не используют ключ.
             mode (str): Режим encrypt или decrypt.
                 По умолчанию используется encrypt.
 
