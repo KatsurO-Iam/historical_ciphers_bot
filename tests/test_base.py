@@ -1,6 +1,6 @@
 import pytest
 
-from ciphers.base import BaseCipher, CipherError, InvalidKeyError
+from ciphers.base import BaseCipher, CipherError, InvalidKeyError, InvalidModeError
 
 class DummyCipher(BaseCipher):
     def validate_key(self, key: str) -> bool:
@@ -65,3 +65,28 @@ def test_invalid_encoding():
 def test_abstract_class():
     with pytest.raises(TypeError):
         BaseCipher()
+
+@pytest.mark.parametrize(
+    "mode", ["", "abc", "ENCRYPT", "encrpyt", "decrypt "]
+)
+def test_invalid_mode(mode):
+    cipher = DummyCipher()
+
+    with pytest.raises(InvalidModeError):
+        cipher.process_file_bytes(b"Hello", "1", mode=mode)
+
+
+def test_invalid_mode_priority():
+    cipher = DummyCipher()
+
+    with pytest.raises(InvalidModeError):
+        cipher.process_file_bytes(b"\xff", "1", mode="invalid")
+
+
+def test_encoding_error_cause():
+    cipher = DummyCipher()
+
+    with pytest.raises(CipherError) as exc_info:
+        cipher.process_file_bytes(b"\xff", "1", mode="encrypt")
+
+    assert isinstance(exc_info.value.__cause__, UnicodeDecodeError)
