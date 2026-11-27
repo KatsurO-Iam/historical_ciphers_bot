@@ -1,5 +1,4 @@
 import abc
-from typing import Tuple
 
 
 class CipherError(Exception):
@@ -9,6 +8,11 @@ class CipherError(Exception):
 
 class InvalidKeyError(CipherError):
     """Исключение, выбрасываемое при невалидном ключе для шифра."""
+    pass
+
+
+class InvalidModeError(CipherError):
+    """Исключение при неверном режиме обработки файла."""
     pass
 
 
@@ -76,29 +80,41 @@ class BaseCipher(abc.ABC):
         """
         pass
 
-    def process_file_bytes(self, data: bytes, key: str, mode: str = "encrypt") -> bytes:
+    def process_file_bytes(
+            self, data: bytes, key: str, mode: str = "encrypt"
+    ) -> bytes:
         """Шифрует или дешифрует содержимое текстового файла.
 
         Args:
             data (bytes): Содержимое файла в кодировке UTF-8.
             key (str): Ключ шифрования или дешифрования.
-            mode (str): Режим обработки: encrypt или decrypt.
+            mode (str): Режим encrypt или decrypt.
                 По умолчанию используется encrypt.
 
         Returns:
             bytes: Обработанное содержимое файла в кодировке UTF-8.
 
         Raises:
+            InvalidModeError: Если передан неподдерживаемый режим.
             CipherError: Если содержимое файла не является текстом UTF-8.
             InvalidKeyError: Если передан некорректный ключ.
         """
+        if mode not in ("encrypt", "decrypt"):
+            raise InvalidModeError(
+                "Режим обработки должен быть 'encrypt' или 'decrypt'."
+            )
+
         try:
             text = data.decode("utf-8")
-        except UnicodeDecodeError:
-            raise CipherError("Исторические шифры поддерживают текстовые файлы в кодировке UTF-8.")
+        except UnicodeDecodeError as exc:
+            raise CipherError(
+                "Исторические шифры поддерживают текстовые файлы "
+                "в кодировке UTF-8."
+            ) from exc
 
         if mode == "encrypt":
             result = self.encrypt(text, key)
         else:
             result = self.decrypt(text, key)
+
         return result.encode("utf-8")
