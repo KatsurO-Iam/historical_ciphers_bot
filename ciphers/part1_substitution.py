@@ -114,3 +114,82 @@ class CaesarCipher(BaseCipher):
         self.validate_key(key)
         shift = int(key.strip())
         return "".join(self._shift_char(ch, -shift) for ch in text)
+
+
+class AtbashCipher(BaseCipher):
+    """Шифр Атбаш для английского и русского алфавитов.
+
+    Заменяет каждую букву зеркальной буквой её алфавита,
+    сохраняя регистр. Остальные символы остаются без изменений.
+
+    Attributes:
+        name (str): Название шифра.
+        description (str): Описание принципа шифрования.
+        requires_key (bool): Признак необходимости ключа.
+        key_hint (str): Подсказка о ключе.
+        RU_LOWER (str): Русский алфавит в нижнем регистре.
+        RU_UPPER (str): Русский алфавит в верхнем регистре.
+    """
+
+    name = "Шифр Атбаш"
+    description = "Замена букв зеркальными буквами их алфавита."
+    requires_key = False
+    key_hint = "Ключ не требуется."
+
+    RU_LOWER = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+    RU_UPPER = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+
+    def validate_key(self, key: str = "") -> bool:
+        """Принимает любой ключ, поскольку шифр его не использует.
+
+        Args:
+            key (str): Неиспользуемый ключ. По умолчанию пустая строка.
+
+        Returns:
+            bool: Всегда True.
+        """
+        return True
+
+    def encrypt(self, text: str, key: str = "") -> str:
+        """Шифрует текст зеркальной заменой букв.
+
+        Args:
+            text (str): Исходный текст.
+            key (str): Неиспользуемый ключ. По умолчанию пустая строка.
+
+        Returns:
+            str: Зашифрованный текст с сохранением регистра.
+        """
+        self.validate_key(key)
+
+        alphabets = (
+            string.ascii_lowercase,
+            string.ascii_uppercase,
+            self.RU_LOWER,
+            self.RU_UPPER,
+        )
+        result = []
+
+        for char in text:
+            for alphabet in alphabets:
+                if char in alphabet:
+                    index = alphabet.index(char)
+                    new_index = len(alphabet) - 1 - index
+                    result.append(alphabet[new_index])
+                    break
+            else:
+                result.append(char)
+
+        return "".join(result)
+
+    def decrypt(self, text: str, key: str = "") -> str:
+        """Расшифровывает текст повторной зеркальной заменой букв.
+
+        Args:
+            text (str): Зашифрованный текст.
+            key (str): Неиспользуемый ключ. По умолчанию пустая строка.
+
+        Returns:
+            str: Расшифрованный текст.
+        """
+        return self.encrypt(text, key)
