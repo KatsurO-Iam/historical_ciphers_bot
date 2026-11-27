@@ -1,4 +1,4 @@
-
+import re
 import string
 
 from .base import BaseCipher, InvalidKeyError
@@ -193,3 +193,139 @@ class AtbashCipher(BaseCipher):
             str: Расшифрованный текст.
         """
         return self.encrypt(text, key)
+
+
+class PolybiusCipher(BaseCipher):
+    """Кодирует символы координатами английского и русского квадратов.
+
+    Регистр букв не сохраняется, английская J объединяется с I.
+    Неподдерживаемые символы заключаются в квадратные скобки.
+
+    Attributes:
+        name (str): Название шифра.
+        description (str): Описание принципа шифрования.
+        requires_key (bool): Необходимость ключа.
+        key_hint (str): Подсказка о ключе.
+        GRID_EN (tuple[str, ...]): Английская матрица 5×5.
+        GRID_RU (tuple[str, ...]): Русская матрица 6×6.
+    """
+
+    name = "Квадрат Полибия"
+    description = "Координатное шифрование"
+    requires_key = False
+    key_hint = "Ключ не требуется (используется классическая матрица)."
+
+    GRID_EN = (
+        "ABCDE",
+        "FGHIK",
+        "LMNOP",
+        "QRSTU",
+        "VWXYZ",
+    )
+
+    GRID_RU = (
+        "АБВГДЕ",
+        "ЖЗИКЛМ",
+        "НОПРСТ",
+        "УФХЦЧШ",
+        "ЩЪЫЬЭЮ",
+        "Я ,.!?",
+    )
+
+    def validate_key(self, key: str = "") -> bool:
+        """Принимает любой ключ, поскольку он не используется.
+
+        Args:
+            key (str): Неиспользуемый ключ.
+
+        Returns:
+            bool: Всегда True.
+        """
+        return True
+
+    def _find_coords(self, char: str) -> str | None:
+        """Находит координаты символа после приведения к верхнему регистру.
+
+        Английская J обрабатывается как I.
+
+        Args:
+            char (str): Символ для поиска в матрицах.
+
+        Returns:
+            str | None: Код с префиксом E или R и номерами строки
+                и столбца, начиная с единицы. Если символ отсутствует
+                в матрицах, возвращается None.
+        """
+        c = char.upper()
+        if c == "J":
+            c = "I"
+
+        for prefix, grid in (("E", self.GRID_EN), ("R", self.GRID_RU)):
+            for row_index, row in enumerate(grid, start=1):
+                for col_index, symbol in enumerate(row, start=1):
+                    if c == symbol:
+                        return f"{prefix}{row_index}{col_index}"
+
+        return None
+
+    def encrypt(self, text: str, key: str = "") -> str:
+        """Преобразует текст в коды, разделённые пробелами.
+
+        Args:
+            text (str): Исходный текст.
+            key (str): Неиспользуемый ключ.
+
+        Returns:
+            str: Координаты символов и неподдерживаемые символы
+                в квадратных скобках.
+        """
+        self.validate_key(key)
+        result = []
+
+        for char in text:
+            coords = self._find_coords(char)
+            result.append(coords if coords is not None else f"[{char}]")
+
+        return " ".join(result)
+
+    def decrypt(self, text: str, key: str = "") -> str:
+        """Восстанавливает текст из координат.
+
+        Args:
+            text (str): Коды символов, разделённые пробельными символами.
+            key (str): Неиспользуемый ключ.
+
+        Returns:
+            str: Расшифрованный текст. Буквы из матриц возвращаются
+                в верхнем регистре, неизвестные токены сохраняются.
+        """
+        self.validate_key(key)
+        grids = {"E": self.GRID_EN, "R": self.GRID_RU}
+        result = []
+
+        for token in re.findall(r"\[[\s\S]\]|\S+", text):
+            if (
+                token.startswith("[")
+                and token.endswith("]")
+                and len(token) == 3
+            ):
+                result.append(token[1:-1])
+                continue
+
+            if (
+                len(token) == 3
+                and token[0] in grids
+                and token[1] in "123456"
+                and token[2] in "123456"
+            ):
+                grid = grids[token[0]]
+                row = int(token[1]) - 1
+                col = int(token[2]) - 1
+
+                if row < len(grid) and col < len(grid[row]):
+                    result.append(grid[row][col])
+                    continue
+
+            result.append(token)
+
+        return "".join(result)
