@@ -92,6 +92,7 @@ def test_round_trip(text, expected):
 
     assert cipher.decrypt(encrypted) == expected
 
+
 def test_file_round_trip():
     cipher = PolybiusCipher()
     original = "ABC\nАБВ\t123".encode("utf-8")

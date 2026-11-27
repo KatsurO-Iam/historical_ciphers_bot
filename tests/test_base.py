@@ -1,6 +1,12 @@
 import pytest
 
-from ciphers.base import BaseCipher, CipherError, InvalidKeyError, InvalidModeError
+from ciphers.base import (
+    BaseCipher,
+    CipherError,
+    InvalidKeyError,
+    InvalidModeError,
+)
+
 
 class DummyCipher(BaseCipher):
     def validate_key(self, key: str) -> bool:
@@ -22,11 +28,13 @@ def test_file_encrypt():
     result = cipher.process_file_bytes(b"Hello", "1")
     assert result == b"olleH"
 
+
 def test_invalid_key():
     cipher = DummyCipher()
 
     with pytest.raises(InvalidKeyError):
         cipher.process_file_bytes(b"Hello", "2")
+
 
 def test_file_decrypt():
     cipher = DummyCipher()
@@ -50,8 +58,8 @@ def test_unicode_file():
 
     assert cipher.process_file_bytes(original, "1") == reversed_text
     assert (
-        cipher.process_file_bytes(reversed_text, "1", mode="decrypt")
-        == original
+            cipher.process_file_bytes(reversed_text, "1", mode="decrypt")
+            == original
     )
 
 
@@ -65,6 +73,7 @@ def test_invalid_encoding():
 def test_abstract_class():
     with pytest.raises(TypeError):
         BaseCipher()
+
 
 @pytest.mark.parametrize(
     "mode", ["", "abc", "ENCRYPT", "encrpyt", "decrypt "]

@@ -305,18 +305,18 @@ class PolybiusCipher(BaseCipher):
 
         for token in re.findall(r"\[[\s\S]\]|\S+", text):
             if (
-                token.startswith("[")
-                and token.endswith("]")
-                and len(token) == 3
+                    token.startswith("[")
+                    and token.endswith("]")
+                    and len(token) == 3
             ):
                 result.append(token[1:-1])
                 continue
 
             if (
-                len(token) == 3
-                and token[0] in grids
-                and token[1] in "123456"
-                and token[2] in "123456"
+                    len(token) == 3
+                    and token[0] in grids
+                    and token[1] in "123456"
+                    and token[2] in "123456"
             ):
                 grid = grids[token[0]]
                 row = int(token[1]) - 1
